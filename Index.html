@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Line Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(to bottom, #0f172a, #1e293b);
+      color: white;
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .hidden { display: none !important; }
+    
+    /* Setup Screen */
+    .setup-screen { padding: 16px; padding-bottom: 100px; }
+    .setup-screen h1 { font-size: 20px; margin-bottom: 12px; }
+    .setup-screen h2 { font-size: 16px; margin-bottom: 8px; margin-top: 20px; }
+    .setup-screen h2.amber { color: #f59e0b; }
+    .setup-screen h2.blue { color: #3b82f6; }
+    .setup-screen h2.green { color: #10b981; }
+    .setup-screen h2.rose { color: #f43f5e; }
+    
+    .opponent-input {
+      width: 100%;
+      padding: 12px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      color: white;
+      font-size: 16px;
+    }
+    
+    .config-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .config-card h3 {
+      font-size: 14px;
+      color: #f59e0b;
+      margin-bottom: 8px;
+    }
+    .config-card h3.blue { color: #3b82f6; }
+    .config-card h3.green { color: #10b981; }
+    .config-card h3.rose { color: #f43f5e; }
+    
+    .position-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .position-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .position-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+    
+    .pos-label {
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+    .pos-btn {
+      width: 100%;
+      padding: 10px 8px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 2px dashed #475569;
+      background: #334155;
+      color: #94a3b8;
+      cursor: pointer;
+    }
+    .pos-btn.filled {
+      background: #059669;
+      border: none;
+      color: white;
+    }
+    .pos-btn.filled.blue { background: #2563eb; }
+    .pos-btn.selected { box-shadow: 0 0 0 2px #f59e0b; }
+    
+    .player-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 8px;
+      background: #0f172a;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    .player-chip {
+      padding: 6px 10px;
+      background: #334155;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+      color: white;
+    }
+    .player-chip:hover { background: #475569; }
+    .player-chip.ap { border: 1px dashed #64748b; }
+    .player-chip.clear { background: #be123c; }
+    
+    .start-btn {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      padding: 16px;
+      background: #f59e0b;
+      color: #0f172a;
+      font-size: 18px;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    
+    /* Tracking Screen */
+    .tracking-screen { padding-bottom: 80px; }
+    
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #334155;
+      padding: 8px 12px;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .header-top .opponent { font-weight: 700; }
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .period-btns {
+      display: flex;
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 4px;
+    }
+    .period-btn {
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-weight: 700;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .period-btn.active {
+      background: #f59e0b;
+      color: #0f172a;
+    }
+    .time-input {
+      width: 56px;
+      padding: 6px 8px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      color: white;
+      font-family: monospace;
+      font-size: 14px;
+      text-align: center;
+    }
+    
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      text-align: center;
+    }
+    .stat-box {
+      background: rgba(16, 185, 129, 0.2);
+      border-radius: 8px;
+      padding: 6px 4px;
+    }
+    .stat-box.red { background: rgba(244, 63, 94, 0.2); }
+    .stat-box.blue { background: rgba(59, 130, 246, 0.2); }
+    .stat-box.purple { background: rgba(139, 92, 246, 0.2); }
+    .stat-box.amber { background: rgba(245, 158, 11, 0.2); }
+    .stat-box .value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #34d399;
+    }
+    .stat-box.red .value { color: #fb7185; }
+    .stat-box.blue .value { color: #60a5fa; }
+    .stat-box.purple .value { color: #a78bfa; }
+    .stat-box.amber .value { color: #fbbf24; }
+    .stat-box .label {
+      font-size: 10px;
+      color: #64748b;
+    }
+    
+    /* Tabs */
+    .tabs {
+      position: sticky;
+      top: 100px;
+      z-index: 40;
+      background: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(8px);
+      padding: 8px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 8px 12px;
+      background: #334155;
+      border: none;
+      border-radius: 8px;
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: #f59e0b;
+      color: #0f172a;
+    }
+    
+    /* Content */
+    .content { padding: 12px; }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f59e0b;
+      margin-bottom: 8px;
+    }
+    .section-title.blue { color: #3b82f6; }
+    
+    /* Line Selector */
+    .line-selector {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .line-btn {
+      padding: 8px 4px;
+      background: #334155;
+      border: none;
+      border-radius: 8px;
+      color: #94a3b8;
+      cursor: pointer;
+      text-align: center;
+    }
+    .line-btn.active {
+      background: #f59e0b;
+      color: #0f172a;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    .line-btn .name { font-weight: 700; font-size: 14px; }
+    .line-btn .players { font-size: 11px; opacity: 0.75; }
+    
+    .dpair-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .dpair-btn {
+      padding: 8px;
+      background: #334155;
+      border: none;
+      border-radius: 8px;
+      color: #94a3b8;
+      cursor: pointer;
+      text-align: center;
+    }
+    .dpair-btn.active {
+      background: #3b82f6;
+      color: white;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .dpair-btn .name { font-weight: 700; font-size: 14px; }
+    .dpair-btn .players { font-size: 11px; opacity: 0.75; }
+    
+    /* Counter Buttons */
+    .tracking-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .tracking-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .counter-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .counter-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .counter-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    
+    .counter-btn {
+      padding: 12px 8px;
+      border-radius: 12px;
+      border: none;
+      text-align: center;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+    .counter-btn.green { background: #059669; }
+    .counter-btn.red { background: #dc2626; }
+    .counter-btn.orange { background: #d97706; }
+    .counter-btn:active { opacity: 0.8; transform: scale(0.98); }
+    .counter-btn .value { font-size: 24px; font-weight: 700; }
+    .counter-btn .label { font-size: 11px; font-weight: 500; }
+    
+    .empty-state {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      color: #64748b;
+    }
+    
+    /* Special Teams */
+    .st-section {
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .st-section.pp {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid #065f46;
+    }
+    .st-section.pk {
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid #9f1239;
+    }
+    .st-section h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .st-section.pp h2 { color: #34d399; }
+    .st-section.pk h2 { color: #fb7185; }
+    .st-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .st-unit {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .st-unit h3 {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .st-counters {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+    }
+    .st-counter {
+      padding: 8px 4px;
+      border-radius: 8px;
+      border: none;
+      text-align: center;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+    .st-counter.green { background: #059669; }
+    .st-counter.red { background: #dc2626; }
+    .st-counter.orange { background: #d97706; }
+    .st-counter .value { font-size: 20px; font-weight: 700; }
+    .st-counter .label { font-size: 10px; }
+    
+    /* Summary */
+    .summary-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .summary-card h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .summary-card h2.amber { color: #f59e0b; }
+    .summary-card h2.blue { color: #3b82f6; }
+    
+    .summary-row {
+      background: #334155;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 8px;
+    }
+    .summary-row-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .summary-row-header .name { font-weight: 700; }
+    .summary-row-header .goals { font-weight: 700; }
+    .summary-row-header .goals.positive { color: #34d399; }
+    .summary-row-header .goals.negative { color: #fb7185; }
+    .summary-row-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      text-align: center;
+      font-size: 12px;
+    }
+    .summary-row-stats .label { color: #64748b; }
+    .summary-row-stats .value { font-weight: 700; }
+    .summary-row-stats .value.blue { color: #60a5fa; }
+    .summary-row-stats .value.green { color: #34d399; }
+    .summary-row-stats .value.red { color: #fb7185; }
+    .summary-row-stats .value.amber { color: #fbbf24; }
+    
+    /* Bottom Bar */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid #334155;
+      padding: 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .setup-btn {
+      padding: 12px 16px;
+      background: #334155;
+      border: none;
+      border-radius: 8px;
+      color: #94a3b8;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .export-btn {
+      flex: 1;
+      padding: 12px;
+      background: #f59e0b;
+      border: none;
+      border-radius: 8px;
+      color: #0f172a;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen" class="setup-screen">
+    <h1>Pre-Game Setup</h1>
+    <input type="text" id="opponent-input" class="opponent-input" placeholder="Opponent name...">
+    
+    <h2 class="amber">Forward Lines</h2>
+    <div id="line-configs"></div>
+    
+    <h2 class="blue">Defense Pairs</h2>
+    <div id="dpair-configs"></div>
+    
+    <h2 class="green">Power Play Units</h2>
+    <div id="pp-configs"></div>
+    
+    <h2 class="rose">Penalty Kill Units</h2>
+    <div id="pk-configs"></div>
+    
+    <button class="start-btn" onclick="startTracking()">Start Tracking →</button>
+  </div>
+  
+  <!-- TRACKING SCREEN -->
+  <div id="tracking-screen" class="tracking-screen hidden">
+    <div class="header">
+      <div class="header-top">
+        <span class="opponent" id="opponent-display">vs Opponent</span>
+        <div class="header-controls">
+          <div class="period-btns">
+            <button class="period-btn active" onclick="setPeriod(1)">P1</button>
+            <button class="period-btn" onclick="setPeriod(2)">P2</button>
+            <button class="period-btn" onclick="setPeriod(3)">P3</button>
+            <button class="period-btn" onclick="setPeriod('OT')">OT</button>
+          </div>
+          <input type="text" id="time-input" class="time-input" placeholder="00:00">
+        </div>
+      </div>
+      <div class="stats-bar">
+        <div class="stat-box"><div class="value" id="stat-gf">0</div><div class="label">GF</div></div>
+        <div class="stat-box red"><div class="value" id="stat-ga">0</div><div class="label">GA</div></div>
+        <div class="stat-box blue"><div class="value" id="stat-ctrl">0%</div><div class="label">Ctrl</div></div>
+        <div class="stat-box purple"><div class="value" id="stat-hdc">0-0</div><div class="label">HDC</div></div>
+        <div class="stat-box amber"><div class="value" id="stat-fo">0%</div><div class="label">FO</div></div>
+      </div>
+    </div>
+    
+    <div class="tabs">
+      <button class="tab-btn active" onclick="setTab('entries')">🚪 Entry</button>
+      <button class="tab-btn" onclick="setTab('breakout')">🔄 Break</button>
+      <button class="tab-btn" onclick="setTab('dzone')">🛡️ DZ</button>
+      <button class="tab-btn" onclick="setTab('chances')">🎯 Chance</button>
+      <button class="tab-btn" onclick="setTab('special')">⭐ ST</button>
+      <button class="tab-btn" onclick="setTab('summary')">📊</button>
+    </div>
+    
+    <div class="content" id="tab-content"></div>
+    
+    <div class="bottom-bar">
+      <button class="setup-btn" onclick="goToSetup()">⚙️ Setup</button>
+      <button class="export-btn" onclick="exportData()">📤 Export</button>
+    </div>
+  </div>
+
+<script>
+// ROSTER DATA
+const ROSTER = {
+  forwards: [
+    { num: 9, name: 'Milford' },
+    { num: 10, name: 'Ilsley', ap: true },
+    { num: 12, name: 'Wyma' },
+    { num: 15, name: 'Carson' },
+    { num: 16, name: 'Farion' },
+    { num: 17, name: 'Fenton' },
+    { num: 18, name: 'Hannigan', ap: true },
+    { num: 20, name: 'Rivett' },
+    { num: 21, name: 'Moskal', ap: true },
+    { num: 22, name: 'Hanson' },
+    { num: 23, name: 'Scott' },
+    { num: 24, name: 'Evong' },
+  ],
+  defense: [
+    { num: 4, name: 'Plenert' },
+    { num: 5, name: 'Thrift', ap: true },
+    { num: 6, name: 'Kautz' },
+    { num: 7, name: 'Juba' },
+    { num: 8, name: 'Smith' },
+    { num: 11, name: 'Radke', ap: true },
+  ]
+};
+
+// STATE
+let state = {
+  phase: 'setup',
+  period: 1,
+  opponent: '',
+  activeTab: 'entries',
+  selectedLine: null,
+  selectedDPair: null,
+  lines: {
+    line1: { lw: null, c: null, rw: null },
+    line2: { lw: null, c: null, rw: null },
+    line3: { lw: null, c: null, rw: null },
+    line4: { lw: null, c: null, rw: null },
+  },
+  dPairs: {
+    pair1: { ld: null, rd: null },
+    pair2: { ld: null, rd: null },
+    pair3: { ld: null, rd: null },
+  },
+  specialTeams: {
+    pp1: { f1: null, f2: null, f3: null, d1: null, d2: null },
+    pp2: { f1: null, f2: null, f3: null, d1: null, d2: null },
+    pk1: { f1: null, f2: null, d1: null, d2: null },
+    pk2: { f1: null, f2: null, d1: null, d2: null },
+  },
+  lineStats: {},
+  dPairStats: {},
+  ppStats: { pp1: { opp: 0, goals: 0, shots: 0, entries: 0 }, pp2: { opp: 0, goals: 0, shots: 0, entries: 0 } },
+  pkStats: { pk1: { kills: 0, ga: 0, clears: 0, sa: 0 }, pk2: { kills: 0, ga: 0, clears: 0, sa: 0 } },
+};
+
+// Initialize stats
+['line1','line2','line3','line4','other'].forEach(key => {
+  state.lineStats[key] = {
+    entries: { carry: 0, carryShot: 0, pass: 0, passShot: 0, dump: 0, dumpShot: 0, failed: 0 },
+    chances: { hdFor: 0, hdAgainst: 0, shotsFor: 0, shotsAgainst: 0 },
+    goals: { for: 0, against: 0 },
+    faceoffs: { won: 0, lost: 0 },
+    turnovers: { dzone: 0, nzone: 0, ozone: 0 }
+  };
+});
+['pair1','pair2','pair3'].forEach(key => {
+  state.dPairStats[key] = {
+    breakouts: { clean: 0, pressure: 0, failed: 0 },
+    dzone: { clears: 0, hdAgainst: 0, coverageLapse: 0 },
+    turnovers: { dzone: 0, nzone: 0 }
+  };
+});
+
+// SETUP RENDERING
+function renderSetup() {
+  // Lines
+  let linesHtml = '';
+  ['line1','line2','line3','line4'].forEach((key, i) => {
+    linesHtml += renderLineConfig(key, `Line ${i+1}`);
+  });
+  document.getElementById('line-configs').innerHTML = linesHtml;
+  
+  // D Pairs
+  let dpairsHtml = '';
+  ['pair1','pair2','pair3'].forEach((key, i) => {
+    dpairsHtml += renderDPairConfig(key, `Pair ${i+1}`);
+  });
+  document.getElementById('dpair-configs').innerHTML = dpairsHtml;
+  
+  // PP
+  let ppHtml = '';
+  ppHtml += renderSTConfig('pp1', 'PP1', false);
+  ppHtml += renderSTConfig('pp2', 'PP2', false);
+  document.getElementById('pp-configs').innerHTML = ppHtml;
+  
+  // PK
+  let pkHtml = '';
+  pkHtml += renderSTConfig('pk1', 'PK1', true);
+  pkHtml += renderSTConfig('pk2', 'PK2', true);
+  document.getElementById('pk-configs').innerHTML = pkHtml;
+}
+
+function renderLineConfig(key, label) {
+  const line = state.lines[key];
+  const positions = ['lw', 'c', 'rw'];
+  let posHtml = positions.map(pos => {
+    const player = line[pos];
+    return `
+      <div>
+        <div class="pos-label">${pos.toUpperCase()}</div>
+        <button class="pos-btn ${player ? 'filled' : ''}" onclick="openPicker('line','${key}','${pos}')">
+          ${player ? '#'+player.num : '+'}
+        </button>
+      </div>
+    `;
+  }).join('');
+  
+  return `
+    <div class="config-card" id="config-${key}">
+      <h3>${label}</h3>
+      <div class="position-grid">${posHtml}</div>
+      <div id="picker-${key}" class="player-picker hidden"></div>
+    </div>
+  `;
+}
+
+function renderDPairConfig(key, label) {
+  const pair = state.dPairs[key];
+  const positions = ['ld', 'rd'];
+  let posHtml = positions.map(pos => {
+    const player = pair[pos];
+    return `
+      <div>
+        <div class="pos-label">${pos.toUpperCase()}</div>
+        <button class="pos-btn ${player ? 'filled blue' : ''}" onclick="openPicker('dpair','${key}','${pos}')">
+          ${player ? '#'+player.num : '+'}
+        </button>
+      </div>
+    `;
+  }).join('');
+  
+  return `
+    <div class="config-card" id="config-${key}">
+      <h3 class="blue">${label}</h3>
+      <div class="position-grid cols-2">${posHtml}</div>
+      <div id="picker-${key}" class="player-picker hidden"></div>
+    </div>
+  `;
+}
+
+function renderSTConfig(key, label, isPK) {
+  const team = state.specialTeams[key];
+  const fSlots = isPK ? ['f1','f2'] : ['f1','f2','f3'];
+  const dSlots = ['d1','d2'];
+  
+  let posHtml = fSlots.map(pos => {
+    const player = team[pos];
+    return `<button class="pos-btn ${player ? 'filled' : ''}" onclick="openPicker('st','${key}','${pos}')">${player ? '#'+player.num : 'F'}</button>`;
+  }).join('');
+  posHtml += dSlots.map(pos => {
+    const player = team[pos];
+    return `<button class="pos-btn ${player ? 'filled blue' : ''}" onclick="openPicker('st','${key}','${pos}')">${player ? '#'+player.num : 'D'}</button>`;
+  }).join('');
+  
+  return `
+    <div class="config-card" id="config-${key}">
+      <h3 class="${isPK ? 'rose' : 'green'}">${label}</h3>
+      <div class="position-grid cols-5">${posHtml}</div>
+      <div id="picker-${key}" class="player-picker hidden"></div>
+    </div>
+  `;
+}
+
+let currentPicker = null;
+function openPicker(type, unitKey, pos) {
+  // Close any open picker
+  document.querySelectorAll('.player-picker').forEach(el => el.classList.add('hidden'));
+  
+  const pickerEl = document.getElementById(`picker-${unitKey}`);
+  const isForward = pos.startsWith('f') || ['lw','c','rw'].includes(pos);
+  const roster = isForward ? ROSTER.forwards : ROSTER.defense;
+  
+  let html = roster.map(p => `
+    <button class="player-chip ${p.ap ? 'ap' : ''}" onclick="selectPlayer('${type}','${unitKey}','${pos}',${p.num})">#${p.num} ${p.name}</button>
+  `).join('');
+  html += `<button class="player-chip clear" onclick="clearPlayer('${type}','${unitKey}','${pos}')">Clear</button>`;
+  
+  pickerEl.innerHTML = html;
+  pickerEl.classList.remove('hidden');
+  currentPicker = { type, unitKey, pos };
+}
+
+function selectPlayer(type, unitKey, pos, num) {
+  const isForward = pos.startsWith('f') || ['lw','c','rw'].includes(pos);
+  const roster = isForward ? ROSTER.forwards : ROSTER.defense;
+  const player = roster.find(p => p.num === num);
+  
+  if (type === 'line') state.lines[unitKey][pos] = player;
+  else if (type === 'dpair') state.dPairs[unitKey][pos] = player;
+  else if (type === 'st') state.specialTeams[unitKey][pos] = player;
+  
+  document.getElementById(`picker-${unitKey}`).classList.add('hidden');
+  renderSetup();
+}
+
+function clearPlayer(type, unitKey, pos) {
+  if (type === 'line') state.lines[unitKey][pos] = null;
+  else if (type === 'dpair') state.dPairs[unitKey][pos] = null;
+  else if (type === 'st') state.specialTeams[unitKey][pos] = null;
+  
+  document.getElementById(`picker-${unitKey}`).classList.add('hidden');
+  renderSetup();
+}
+
+// TRACKING
+function startTracking() {
+  state.opponent = document.getElementById('opponent-input').value || 'Opponent';
+  state.phase = 'tracking';
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('tracking-screen').classList.remove('hidden');
+  document.getElementById('opponent-display').textContent = 'vs ' + state.opponent;
+  renderTab();
+}
+
+function goToSetup() {
+  state.phase = 'setup';
+  document.getElementById('tracking-screen').classList.add('hidden');
+  document.getElementById('setup-screen').classList.remove('hidden');
+}
+
+function setPeriod(p) {
+  state.period = p;
+  document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function setTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  renderTab();
+}
+
+function selectLine(key) {
+  state.selectedLine = key;
+  renderTab();
+}
+
+function selectDPair(key) {
+  state.selectedDPair = key;
+  renderTab();
+}
+
+function incStat(type, unit, cat, stat) {
+  if (type === 'line') state.lineStats[unit][cat][stat]++;
+  else if (type === 'dpair') state.dPairStats[unit][cat][stat]++;
+  else if (type === 'pp') state.ppStats[unit][stat]++;
+  else if (type === 'pk') state.pkStats[unit][stat]++;
+  updateStatsBar();
+  renderTab();
+}
+
+function getLinePlayers(key) {
+  if (key === 'other') return '—';
+  const line = state.lines[key];
+  return [line.lw, line.c, line.rw].filter(Boolean).map(p => p.num).join('-') || '—';
+}
+
+function getDPairPlayers(key) {
+  const pair = state.dPairs[key];
+  return [pair.ld, pair.rd].filter(Boolean).map(p => p.num).join('-') || '—';
+}
+
+function updateStatsBar() {
+  let gf = 0, ga = 0, hdFor = 0, hdAgainst = 0, foWon = 0, foLost = 0, carry = 0, pass = 0, dump = 0, failed = 0;
+  Object.values(state.lineStats).forEach(s => {
+    gf += s.goals.for;
+    ga += s.goals.against;
+    hdFor += s.chances.hdFor;
+    hdAgainst += s.chances.hdAgainst;
+    foWon += s.faceoffs.won;
+    foLost += s.faceoffs.lost;
+    carry += s.entries.carry;
+    pass += s.entries.pass;
+    dump += s.entries.dump;
+    failed += s.entries.failed;
+  });
+  
+  const totalEntries = carry + pass + dump;
+  const ctrlPct = totalEntries > 0 ? Math.round(((carry + pass) / totalEntries) * 100) : 0;
+  const foPct = (foWon + foLost) > 0 ? Math.round((foWon / (foWon + foLost)) * 100) : 0;
+  
+  document.getElementById('stat-gf').textContent = gf;
+  document.getElementById('stat-ga').textContent = ga;
+  document.getElementById('stat-ctrl').textContent = ctrlPct + '%';
+  document.getElementById('stat-hdc').textContent = hdFor + '-' + hdAgainst;
+  document.getElementById('stat-fo').textContent = foPct + '%';
+}
+
+function renderTab() {
+  const content = document.getElementById('tab-content');
+  
+  if (state.activeTab === 'entries') {
+    let lineSelectorHtml = ['line1','line2','line3','line4','other'].map(key => {
+      const label = key === 'other' ? 'Other' : key.replace('line', 'L');
+      const players = getLinePlayers(key);
+      return `<button class="line-btn ${state.selectedLine === key ? 'active' : ''}" onclick="selectLine('${key}')">
+        <div class="name">${label}</div>
+        <div class="players">${players}</div>
+      </button>`;
+    }).join('');
+    
+    let statsHtml = '';
+    if (state.selectedLine) {
+      const s = state.lineStats[state.selectedLine];
+      statsHtml = `
+        <div class="tracking-card">
+          <h3>Zone Entries</h3>
+          <div class="counter-grid">
+            <button class="counter-btn green" onclick="incStat('line','${state.selectedLine}','entries','carry')">
+              <div class="value">${s.entries.carry}</div><div class="label">Carry</div>
+            </button>
+            <button class="counter-btn" onclick="incStat('line','${state.selectedLine}','entries','pass')">
+              <div class="value">${s.entries.pass}</div><div class="label">Pass</div>
+            </button>
+            <button class="counter-btn orange" onclick="incStat('line','${state.selectedLine}','entries','dump')">
+              <div class="value">${s.entries.dump}</div><div class="label">Dump</div>
+            </button>
+            <button class="counter-btn red" onclick="incStat('line','${state.selectedLine}','entries','failed')">
+              <div class="value">${s.entries.failed}</div><div class="label">Failed</div>
+            </button>
+          </div>
+        </div>
+        <div class="tracking-card">
+          <h3>Entry → Shot?</h3>
+          <div class="counter-grid cols-3">
+            <button class="counter-btn green" onclick="incStat('line','${state.selectedLine}','entries','carryShot')">
+              <div class="value">${s.entries.carryShot}</div><div class="label">Carry→Shot</div>
+            </button>
+            <button class="counter-btn" onclick="incStat('line','${state.selectedLine}','entries','passShot')">
+              <div class="value">${s.entries.passShot}</div><div class="label">Pass→Shot</div>
+            </button>
+            <button class="counter-btn orange" onclick="incStat('line','${state.selectedLine}','entries','dumpShot')">
+              <div class="value">${s.entries.dumpShot}</div><div class="label">Dump→Shot</div>
+            </button>
+          </div>
+        </div>
+        <div class="tracking-card">
+          <h3>Faceoffs</h3>
+          <div class="counter-grid cols-2">
+            <button class="counter-btn green" onclick="incStat('line','${state.selectedLine}','faceoffs','won')">
+              <div class="value">${s.faceoffs.won}</div><div class="label">FO Won</div>
+            </button>
+            <button class="counter-btn red" onclick="incStat('line','${state.selectedLine}','faceoffs','lost')">
+              <div class="value">${s.faceoffs.lost}</div><div class="label">FO Lost</div>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      statsHtml = '<div class="empty-state">Select a line above to track</div>';
+    }
+    
+    content.innerHTML = `
+      <div class="section-title">Select Line on Ice</div>
+      <div class="line-selector">${lineSelectorHtml}</div>
+      ${statsHtml}
+    `;
+  }
+  
+  else if (state.activeTab === 'breakout' || state.activeTab === 'dzone') {
+    let dpairSelectorHtml = ['pair1','pair2','pair3'].map(key => {
+      const label = key.replace('pair', 'D');
+      const players = getDPairPlayers(key);
+      return `<button class="dpair-btn ${state.selectedDPair === key ? 'active' : ''}" onclick="selectDPair('${key}')">
+        <div class="name">${label}</div>
+        <div class="players">${players}</div>
+      </button>`;
+    }).join('');
+    
+    let statsHtml = '';
+    if (state.selectedDPair) {
+      const s = state.dPairStats[state.selectedDPair];
+      if (state.activeTab === 'breakout') {
+        statsHtml = `
+          <div class="tracking-card">
+            <h3>Breakouts</h3>
+            <div class="counter-grid cols-3">
+              <button class="counter-btn green" onclick="incStat('dpair','${state.selectedDPair}','breakouts','clean')">
+                <div class="value">${s.breakouts.clean}</div><div class="label">Clean</div>
+              </button>
+              <button class="counter-btn orange" onclick="incStat('dpair','${state.selectedDPair}','breakouts','pressure')">
+                <div class="value">${s.breakouts.pressure}</div><div class="label">Pressure</div>
+              </button>
+              <button class="counter-btn red" onclick="incStat('dpair','${state.selectedDPair}','breakouts','failed')">
+                <div class="value">${s.breakouts.failed}</div><div class="label">Failed</div>
+              </button>
+            </div>
+          </div>
+          <div class="tracking-card">
+            <h3>Turnovers</h3>
+            <div class="counter-grid cols-2">
+              <button class="counter-btn red" onclick="incStat('dpair','${state.selectedDPair}','turnovers','dzone')">
+                <div class="value">${s.turnovers.dzone}</div><div class="label">D-Zone TO</div>
+              </button>
+              <button class="counter-btn orange" onclick="incStat('dpair','${state.selectedDPair}','turnovers','nzone')">
+                <div class="value">${s.turnovers.nzone}</div><div class="label">N-Zone TO</div>
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        statsHtml = `
+          <div class="tracking-card">
+            <h3>D-Zone</h3>
+            <div class="counter-grid cols-3">
+              <button class="counter-btn green" onclick="incStat('dpair','${state.selectedDPair}','dzone','clears')">
+                <div class="value">${s.dzone.clears}</div><div class="label">Clears</div>
+              </button>
+              <button class="counter-btn red" onclick="incStat('dpair','${state.selectedDPair}','dzone','hdAgainst')">
+                <div class="value">${s.dzone.hdAgainst}</div><div class="label">HD Against</div>
+              </button>
+              <button class="counter-btn red" onclick="incStat('dpair','${state.selectedDPair}','dzone','coverageLapse')">
+                <div class="value">${s.dzone.coverageLapse}</div><div class="label">Cov Lapse</div>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      statsHtml = '<div class="empty-state">Select a D pair above to track</div>';
+    }
+    
+    content.innerHTML = `
+      <div class="section-title blue">Select D Pair</div>
+      <div class="dpair-selector">${dpairSelectorHtml}</div>
+      ${statsHtml}
+    `;
+  }
+  
+  else if (state.activeTab === 'chances') {
+    let lineSelectorHtml = ['line1','line2','line3','line4','other'].map(key => {
+      const label = key === 'other' ? 'Other' : key.replace('line', 'L');
+      const players = getLinePlayers(key);
+      return `<button class="line-btn ${state.selectedLine === key ? 'active' : ''}" onclick="selectLine('${key}')">
+        <div class="name">${label}</div>
+        <div class="players">${players}</div>
+      </button>`;
+    }).join('');
+    
+    let statsHtml = '';
+    if (state.selectedLine) {
+      const s = state.lineStats[state.selectedLine];
+      statsHtml = `
+        <div class="tracking-card">
+          <h3>Goals</h3>
+          <div class="counter-grid cols-2">
+            <button class="counter-btn green" onclick="incStat('line','${state.selectedLine}','goals','for')">
+              <div class="value">${s.goals.for}</div><div class="label">GOAL FOR 🎯</div>
+            </button>
+            <button class="counter-btn red" onclick="incStat('line','${state.selectedLine}','goals','against')">
+              <div class="value">${s.goals.against}</div><div class="label">GOAL AGAINST</div>
+            </button>
+          </div>
+        </div>
+        <div class="tracking-card">
+          <h3>Scoring Chances</h3>
+          <div class="counter-grid cols-2">
+            <button class="counter-btn green" onclick="incStat('line','${state.selectedLine}','chances','hdFor')">
+              <div class="value">${s.chances.hdFor}</div><div class="label">HD For</div>
+            </button>
+            <button class="counter-btn red" onclick="incStat('line','${state.selectedLine}','chances','hdAgainst')">
+              <div class="value">${s.chances.hdAgainst}</div><div class="label">HD Against</div>
+            </button>
+            <button class="counter-btn green" onclick="incStat('line','${state.selectedLine}','chances','shotsFor')">
+              <div class="value">${s.chances.shotsFor}</div><div class="label">Shots For</div>
+            </button>
+            <button class="counter-btn red" onclick="incStat('line','${state.selectedLine}','chances','shotsAgainst')">
+              <div class="value">${s.chances.shotsAgainst}</div><div class="label">Shots Against</div>
+            </button>
+          </div>
+        </div>
+        <div class="tracking-card">
+          <h3>Turnovers</h3>
+          <div class="counter-grid cols-3">
+            <button class="counter-btn red" onclick="incStat('line','${state.selectedLine}','turnovers','dzone')">
+              <div class="value">${s.turnovers.dzone}</div><div class="label">D-Zone</div>
+            </button>
+            <button class="counter-btn orange" onclick="incStat('line','${state.selectedLine}','turnovers','nzone')">
+              <div class="value">${s.turnovers.nzone}</div><div class="label">N-Zone</div>
+            </button>
+            <button class="counter-btn" onclick="incStat('line','${state.selectedLine}','turnovers','ozone')">
+              <div class="value">${s.turnovers.ozone}</div><div class="label">O-Zone</div>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      statsHtml = '<div class="empty-state">Select a line above to track</div>';
+    }
+    
+    content.innerHTML = `
+      <div class="section-title">Select Line on Ice</div>
+      <div class="line-selector">${lineSelectorHtml}</div>
+      ${statsHtml}
+    `;
+  }
+  
+  else if (state.activeTab === 'special') {
+    content.innerHTML = `
+      <div class="st-section pp">
+        <h2>Power Play</h2>
+        <div class="st-grid">
+          ${['pp1','pp2'].map(unit => {
+            const s = state.ppStats[unit];
+            return `<div class="st-unit">
+              <h3>${unit.toUpperCase()}</h3>
+              <div class="st-counters">
+                <button class="st-counter" onclick="incStat('pp','${unit}',null,'opp')"><div class="value">${s.opp}</div><div class="label">Opp</div></button>
+                <button class="st-counter green" onclick="incStat('pp','${unit}',null,'goals')"><div class="value">${s.goals}</div><div class="label">Goal</div></button>
+                <button class="st-counter" onclick="incStat('pp','${unit}',null,'shots')"><div class="value">${s.shots}</div><div class="label">Shot</div></button>
+                <button class="st-counter" onclick="incStat('pp','${unit}',null,'entries')"><div class="value">${s.entries}</div><div class="label">Entry</div></button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="st-section pk">
+        <h2>Penalty Kill</h2>
+        <div class="st-grid">
+          ${['pk1','pk2'].map(unit => {
+            const s = state.pkStats[unit];
+            return `<div class="st-unit">
+              <h3>${unit.toUpperCase()}</h3>
+              <div class="st-counters">
+                <button class="st-counter green" onclick="incStat('pk','${unit}',null,'kills')"><div class="value">${s.kills}</div><div class="label">Kill</div></button>
+                <button class="st-counter red" onclick="incStat('pk','${unit}',null,'ga')"><div class="value">${s.ga}</div><div class="label">GA</div></button>
+                <button class="st-counter green" onclick="incStat('pk','${unit}',null,'clears')"><div class="value">${s.clears}</div><div class="label">Clear</div></button>
+                <button class="st-counter orange" onclick="incStat('pk','${unit}',null,'sa')"><div class="value">${s.sa}</div><div class="label">SA</div></button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  else if (state.activeTab === 'summary') {
+    let linesHtml = ['line1','line2','line3','line4'].map(key => {
+      const s = state.lineStats[key];
+      const players = getLinePlayers(key);
+      const totalEnt = s.entries.carry + s.entries.pass + s.entries.dump;
+      const ctrlPct = totalEnt > 0 ? Math.round(((s.entries.carry + s.entries.pass) / totalEnt) * 100) : 0;
+      const foTotal = s.faceoffs.won + s.faceoffs.lost;
+      const foPct = foTotal > 0 ? Math.round((s.faceoffs.won / foTotal) * 100) : 0;
+      const goalDiff = s.goals.for - s.goals.against;
+      const goalClass = goalDiff > 0 ? 'positive' : goalDiff < 0 ? 'negative' : '';
+      
+      return `<div class="summary-row">
+        <div class="summary-row-header">
+          <span class="name">${key.replace('line','L')} (${players})</span>
+          <span class="goals ${goalClass}">${s.goals.for}-${s.goals.against}</span>
+        </div>
+        <div class="summary-row-stats">
+          <div><div class="label">Entry%</div><div class="value blue">${ctrlPct}%</div></div>
+          <div><div class="label">HDC</div><div class="value ${s.chances.hdFor > s.chances.hdAgainst ? 'green' : 'red'}">${s.chances.hdFor}-${s.chances.hdAgainst}</div></div>
+          <div><div class="label">Shots</div><div class="value">${s.chances.shotsFor}-${s.chances.shotsAgainst}</div></div>
+          <div><div class="label">FO%</div><div class="value amber">${foPct}%</div></div>
+        </div>
+      </div>`;
+    }).join('');
+    
+    let dpairsHtml = ['pair1','pair2','pair3'].map(key => {
+      const s = state.dPairStats[key];
+      const players = getDPairPlayers(key);
+      const totalBO = s.breakouts.clean + s.breakouts.pressure + s.breakouts.failed;
+      const boPct = totalBO > 0 ? Math.round(((s.breakouts.clean + s.breakouts.pressure) / totalBO) * 100) : 0;
+      
+      return `<div class="summary-row">
+        <div class="summary-row-header">
+          <span class="name">${key.replace('pair','D')} (${players})</span>
+        </div>
+        <div class="summary-row-stats">
+          <div><div class="label">BO%</div><div class="value blue">${boPct}%</div></div>
+          <div><div class="label">Clears</div><div class="value green">${s.dzone.clears}</div></div>
+          <div><div class="label">HD Ag</div><div class="value red">${s.dzone.hdAgainst}</div></div>
+          <div><div class="label">D-TO</div><div class="value red">${s.turnovers.dzone}</div></div>
+        </div>
+      </div>`;
+    }).join('');
+    
+    content.innerHTML = `
+      <div class="summary-card">
+        <h2 class="amber">Line Performance</h2>
+        ${linesHtml}
+      </div>
+      <div class="summary-card">
+        <h2 class="blue">D Pair Performance</h2>
+        ${dpairsHtml}
+      </div>
+    `;
+  }
+}
+
+function exportData() {
+  const data = {
+    opponent: state.opponent,
+    lines: state.lines,
+    dPairs: state.dPairs,
+    specialTeams: state.specialTeams,
+    lineStats: state.lineStats,
+    dPairStats: state.dPairStats,
+    ppStats: state.ppStats,
+    pkStats: state.pkStats,
+    exportedAt: new Date().toISOString()
+  };
+  
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `game-${state.opponent.replace(/\s+/g, '_')}-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// INIT
+renderSetup();
+</script>
+</body>
+</html>
